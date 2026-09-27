@@ -65,11 +65,11 @@ def listing(url):
 
 
 def years(base):
-    return sorted({int(y) for y in re.findall(r'href="(\d{4})/"', listing(base))})
+    return sorted({int(y) for y in re.findall(r'href="(?:[^"]*/)?(\d{4})/"', listing(base))})
 
 
 def departments(base, year):
-    return sorted(set(re.findall(r'href="([0-9AB]{2,3})\.csv\.gz"', listing(f"{base}{year}/departements/"))))
+    return sorted(set(re.findall(r'href="(?:[^"]*/)?([0-9AB]{2,3})\.csv\.gz"', listing(f"{base}{year}/departements/"))))
 
 
 def num(v, cast=float):
@@ -171,6 +171,9 @@ def main():
 
     ys = [int(y) for y in args.years.split(",") if y] or years(base)
     print("Années :", ys, flush=True)
+    if not ys:
+        print("Index illisible :", listing(base)[:2000], file=sys.stderr)
+        sys.exit(1)
     tasks = []
     for y in ys:
         deps = [d for d in args.deps.split(",") if d] or departments(base, y)

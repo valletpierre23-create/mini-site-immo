@@ -24,22 +24,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: gh-pages
           fetch-depth: 1
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Construire les fichiers de ventes
+        id: build
+        continue-on-error: true
         run: |
-          rm -rf arpent/dvf
-          python tools/build_dvf.py --out arpent/dvf --workers 12
+          set -o pipefail
+          rm -rf arpent/dvf.new
+          python tools/build_dvf.py --out arpent/dvf.new --workers 12 2>&1 | tee tools/last-build.log
       - name: Publier
         run: |
+          if [ "${{ steps.build.outcome }}" = "success" ]; then rm -rf arpent/dvf && mv arpent/dvf.new arpent/dvf; else rm -rf arpent/dvf.new; fi
           git config user.name "arpent-bot"
           git config user.email "arpent-bot@users.noreply.github.com"
-          git add -A arpent/dvf
+          git add -A arpent/dvf tools/last-build.log
           if git diff --cached --quiet; then echo "Aucun changement"; exit 0; fi
-          git commit -q -m "Données DVF $(date -u +%Y-%m-%d)"
+          git commit -q -m "Données DVF $(date -u +%Y-%m-%d) (${{ steps.build.outcome }})"
           git push origin HEAD:gh-pages
