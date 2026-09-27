@@ -1,0 +1,45 @@
+# Données de ventes (DVF) pour l'estimation d'Arpent.
+# Télécharge les « Demandes de valeurs foncières géolocalisées » (DGFiP / Etalab),
+# les nettoie et publie des fichiers compacts dans arpent/dvf/ (servis par GitHub Pages).
+# Se relance à chaque modification du script, ou à la main (onglet Actions › Run workflow).
+name: Données DVF
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [gh-pages]
+    paths:
+      - ".github/workflows/dvf.yml"
+      - "tools/build_dvf.py"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dvf
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Construire les fichiers de ventes
+        run: |
+          rm -rf arpent/dvf
+          python tools/build_dvf.py --out arpent/dvf --workers 12
+      - name: Publier
+        run: |
+          git config user.name "arpent-bot"
+          git config user.email "arpent-bot@users.noreply.github.com"
+          git add -A arpent/dvf
+          if git diff --cached --quiet; then echo "Aucun changement"; exit 0; fi
+          git commit -q -m "Données DVF $(date -u +%Y-%m-%d)"
+          git push origin HEAD:gh-pages
